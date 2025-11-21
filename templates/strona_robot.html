@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrobok Mk.2</title>
+    <style>
+        /* --- ZMIENNE KOLORÓW DLA CIEMNEGO MOTYWU --- */
+        :root {
+            --bg-color: #1e1e1e;
+            --container-bg: #2d2d30;
+            --text-color: #f0f0f0;
+            --heading-color: #3498db;
+            --border-color: #3a3a3a;
+            --button-primary: #3498db;
+            --button-hover: #2980b9;
+            --button-danger: #e74c3c;
+            --button-danger-hover: #c0392b;
+            --status-active: #2ecc71;
+            --status-inactive: #e74c3c;
+            --slider-track: #555;
+            --slider-thumb: #3498db;
+            --slider-thumb-active: #2ecc71;
+        }
+
+        /* --- STYLI GŁÓWNEJ STRONY --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            transition: margin-right 0.3s;
+        }
+
+        body.menu-open {
+            margin-right: 300px;
+        }
+
+        h1 {
+            color: var(--heading-color);
+            font-weight: 600;
+            margin-bottom: 20px;
+            /* Zmodyfikowany margines górny, żeby logo się nie nakładało */
+            margin-top: 60px;
+            border-bottom: 2px solid var(--heading-color);
+            padding-bottom: 10px;
+            display: inline-block;
+        }
+
+        /* --- STYLI DLA LOGO (POZYCJONOWANIE ABSOLUTNE) --- */
+        .logo-container {
+            position: absolute;
+            top: 20px;          /* 20px od góry */
+            left: 20px;         /* 20px od lewej */
+            z-index: 101;       /* Upewnij się, że logo jest nad resztą */
+        }
+
+        .logo-container img {
+            width: 80px;        /* Szerokość logo (dostosuj) */
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .main-content-wrapper {
+            display: flex;
+            gap: 30px;
+            background-color: var(--container-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            max-width: 1400px;
+            width: 90%;
+            justify-content: space-between;
+        }
+
+        .video-and-controls {
+            flex: 2;
+            min-width: 450px;
+            text-align: center;
+        }
+
+        .sliders-section {
+            flex: 1.2;
+            padding: 10px;
+            border-left: 1px solid var(--border-color);
+            text-align: left;
+            min-width: 300px;
+        }
+
+        .sliders-section h2 {
+            color: var(--status-active);
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        /* --- STYLI SUWAKÓW GŁÓWNYCH i SIDEBAR --- */
+        .slider-group {
+            margin-bottom: 25px;
+            padding: 5px 0;
+            border-bottom: 1px dotted rgba(255, 255, 255, 0.1);
+        }
+
+        .slider-group:last-of-type {
+             border-bottom: none;
+        }
+
+        .slider-group label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-color);
+            font-size: 1.1em;
+        }
+
+        .slider-value {
+            font-weight: bold;
+            color: var(--button-primary);
+            min-width: 60px;
+            text-align: right;
+            background-color: #3e3e42;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .slider-group input[type="range"] {
+            width: 100%;
+            height: 12px;
+            -webkit-appearance: none;
+            background: var(--slider-track);
+            border-radius: 6px;
+            outline: none;
+            opacity: 0.9;
+            transition: opacity .2s;
+        }
+
+        .slider-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--slider-thumb);
+            cursor: pointer;
+            border: 3px solid var(--container-bg);
+            transition: background 0.2s;
+        }
+
+        .slider-group input[type="range"]:active::-webkit-slider-thumb {
+            background: var(--slider-thumb-active);
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.8);
+        }
+
+        /* --- STYLI SIDEBAR (zaktualizowane przyciski Lidaru) --- */
+        .sidebar-toggle-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--button-primary);
+            color: var(--text-color);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            z-index: 100;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            font-size: 1.2em;
+        }
+
+        .sidebar {
+            height: 100%;
+            width: 0;
+            position: fixed;
+            z-index: 99;
+            top: 0;
+            right: 0;
+            background-color: var(--container-bg);
+            overflow-x: hidden;
+            transition: 0.3s;
+            padding-top: 60px;
+            border-left: 2px solid var(--border-color);
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .sidebar.open {
+            width: 300px;
+            padding: 20px;
+            padding-top: 60px;
+        }
+
+        .sidebar h3 {
+            color: var(--heading-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            font-size: 36px;
+            margin-left: 50px;
+            color: var(--text-color);
+            cursor: pointer;
+        }
+
+        .sidebar button {
+            background-color: var(--status-active);
+            color: var(--text-color);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            font-size: 1.1em;
+            margin-top: 10px;
+        }
+
+        .sidebar .danger-button {
+             background-color: var(--button-danger);
+        }
+        .sidebar .danger-button:hover {
+             background-color: var(--button-danger-hover);
+        }
+        .sidebar .primary-button {
+             background-color: var(--button-primary);
+        }
+        .sidebar .primary-button:hover {
+             background-color: var(--button-hover);
+        }
+
+        .sidebar button:hover {
+            background-color: #27ae60;
+        }
+
+
+        /* --- NOWE STYLI DLA GUZIKÓW RUCHU (MOVEMENT-CONTROLS) --- */
+        .movement-controls {
+            margin-top: 30px;
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .movement-controls h3 {
+            color: var(--heading-color);
+            margin-bottom: 20px;
+        }
+
+        .movement-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 3 kolumny */
+            gap: 10px;
+            max-width: 320px;
+            margin: 0 auto;
+        }
+
+        .movement-grid button {
+            width: 100%;
+            padding: 15px 5px;
+            font-size: 1.1em;
+            font-weight: bold;
+            background-color: var(--button-primary);
+            color: var(--text-color);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            white-space: nowrap;
+        }
+
+        .movement-grid button:hover {
+            background-color: var(--button-hover);
+        }
+
+        .movement-grid button.stop-button {
+            background-color: var(--button-danger);
+        }
+
+        .movement-grid button.stop-button:hover {
+            background-color: var(--button-danger-hover);
+        }
+
+        .movement-grid .empty {
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* Reszta stylów ... */
+        .controls button {
+            background-color: var(--button-primary);
+            color: var(--text-color);
+            border: none;
+            padding: 12px 25px;
+            margin: 0 10px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+        .controls button:hover {
+            background-color: var(--button-hover);
+        }
+        .controls button:last-child {
+            background-color: var(--button-danger);
+        }
+        .controls button:last-child:hover {
+            background-color: var(--button-danger-hover);
+        }
+        .video-container {
+            border: 5px solid var(--border-color);
+            border-radius: 8px;
+            display: inline-block;
+            overflow: hidden;
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+        .video-container img {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+        .status {
+            margin-top: 20px;
+            color: var(--text-color);
+        }
+    </style>
+    <script>
+        function controlStream(action) {
+            fetch('/' + action + '_stream')
+                .then(response => {
+                    const statusElement = document.getElementById('processing-status');
+                    if (response.ok) {
+                        if (action === 'start') {
+                            statusElement.textContent = 'Stan przetwarzania: AKTYWNY (YOLO)';
+                            statusElement.style.color = 'var(--status-active)';
+                        } else {
+                            statusElement.textContent = 'Stan przetwarzania: ZATRZYMANY';
+                            statusElement.style.color = 'var(--status-inactive)';
+                        }
+                    } else {
+                         statusElement.textContent = 'BŁĄD ZMIANY STANU!';
+                         statusElement.style.color = 'var(--button-danger)';
+                    }
+                })
+                .catch(error => console.error('Błąd komunikacji z serwerem:', error));
+        }
+
+        function updateSliderValue(sliderId, value) {
+            const rangeInput = document.getElementById(sliderId);
+            const valueSpan = document.getElementById(sliderId + '-value');
+
+            if (valueSpan) {
+                 valueSpan.textContent = value;
+            }
+
+            let endpoint = '';
+            let bodyData = {};
+
+            if (sliderId.includes('servo-slider')) {
+                endpoint = '/update_servo';
+                bodyData = {
+                    servo: rangeInput.name,
+                    value: value
+                };
+            } else {
+                endpoint = '/update_logic_param';
+                bodyData = {
+                    setting: rangeInput.name,
+                    value: value
+                };
+            }
+
+            fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(bodyData),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    console.error(`Błąd aktualizacji ${rangeInput.name}`);
+                }
+            })
+            .catch(error => console.error('Błąd komunikacji z serwerem:', error));
+        }
+
+        function toggleNav() {
+            const sidebar = document.getElementById("settings-sidebar");
+            const body = document.body;
+
+            if (sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+                body.classList.remove('menu-open');
+            } else {
+                sidebar.classList.add('open');
+                body.classList.add('menu-open');
+            }
+        }
+
+        function closeNav() {
+            document.getElementById("settings-sidebar").classList.remove('open');
+            document.body.classList.remove('menu-open');
+        }
+
+        function sendInitialPosition() {
+            fetch('/set_initial_position', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action: "reset" }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    alert("Wysłano komendę: Ustawienie pozycji początkowej i zresetowano suwaki.");
+
+                    if (data.initial_values) {
+                        for (const [servoName, value] of Object.entries(data.initial_values)) {
+                            const sliderId = `servo-slider-${servoName.replace('Servo', '')}`;
+                            const rangeInput = document.getElementById(sliderId);
+
+                            if (rangeInput) {
+                                rangeInput.value = value;
+                                const valueSpan = document.getElementById(sliderId + '-value');
+                                if (valueSpan) {
+                                    valueSpan.textContent = value;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    alert("Błąd wysyłania komendy: " + data.message);
+                }
+            })
+            .catch(error => console.error('Błąd komunikacji z serwerem:', error));
+        }
+
+        function sendMoveCommand(direction) {
+            // F: Przód, B: Tył, L: Lewo, R: Prawo, TL: Obrót Lewo, TR: Obrót Prawo, S: Stop
+            fetch('/send_move_command', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ command: direction }),
+            })
+            .then(response => {
+                if (response.ok) {
+                    console.log(`Wysłano komendę ruchu: ${direction}`);
+                } else {
+                    console.error(`Błąd wysyłania komendy ruchu: ${direction}`);
+                }
+            })
+            .catch(error => console.error('Błąd komunikacji z serwerem:', error));
+        }
+
+        function controlLidar(action) {
+            fetch('/control_lidar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action: action }),
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert(`Wysłano komendę Lidaru: ${action}. Sprawdź logi serwera/mikrokontrolera.`);
+                } else {
+                    alert(`Błąd wysyłania komendy Lidaru: ${action}.`);
+                }
+            })
+            .catch(error => console.error('Błąd komunikacji z serwerem:', error));
+        }
+
+
+        window.onload = function() {
+            document.getElementById('processing-status').textContent = 'Stan przetwarzania: ZATRZYMANY';
+            document.getElementById('processing-status').style.color = 'var(--status-inactive)';
+
+            // Inicjalizacja wszystkich suwaków
+            updateSliderValue('servo-slider-1', document.getElementById('servo-slider-1').value);
+            updateSliderValue('servo-slider-2', document.getElementById('servo-slider-2').value);
+            updateSliderValue('servo-slider-3', document.getElementById('servo-slider-3').value);
+            updateSliderValue('servo-slider-4', document.getElementById('servo-slider-4').value);
+            updateSliderValue('servo-slider-5', document.getElementById('servo-slider-5').value);
+
+            updateSliderValue('gripper-delay', document.getElementById('gripper-delay').value);
+            updateSliderValue('servo-delay', document.getElementById('servo-delay').value);
+            updateSliderValue('turn-power', document.getElementById('turn-power').value);
+            updateSliderValue('pwm-value', document.getElementById('pwm-value').value);
+        };
+    </script>
+</head>
+<body>
+    <div class="logo-container">
+        <a href="https://int.uken.krakow.pl" target="_blank" title="Przejdź do strony głównej">
+            <img src="../static/logo.jpg" alt="Logo Chrobok Mk.2">
+        </a>
+    </div>
+
+    <button class="sidebar-toggle-btn" onclick="toggleNav()">Ustawienia</button>
+
+    <h1>Chrobok Mk.2</h1>
+
+    <div class="main-content-wrapper">
+        <div class="video-and-controls">
+
+            <div class="controls">
+                <button onclick="controlStream('start')" title="Włącz przetwarzanie obrazu">▶️ START DETEKCJI</button>
+                <button onclick="controlStream('stop')" title="Zatrzymaj przetwarzanie obrazu">⏹️ STOP DETEKCJI</button>
+            </div>
+
+            <div class="video-container">
+                <img src="/video_feed" alt="Wideo">
+            </div>
+
+            <p id="processing-status" class="status">Stan przetwarzania: Ładowanie...</p>
+        </div>
+
+        <div class="sliders-section">
+            <h2>Sterowanie Serwomotorami</h2>
+
+            <div class="slider-group">
+                <label for="servo-slider-1">
+                    <span>Serwo 1 (Min: 500, Max: 2380)</span>
+                    <span id="servo-slider-1-value" class="slider-value"></span>
+                </label>
+                <input type="range" id="servo-slider-1" name="Servo1" min="500" max="2380" step="1" value="500" oninput="updateSliderValue('servo-slider-1', this.value)">
+            </div>
+
+            <div class="slider-group">
+                <label for="servo-slider-2">
+                    <span>Serwo 2 (Min: 0, Max: 150)</span>
+                    <span id="servo-slider-2-value" class="slider-value"></span>
+                </label>
+                <input type="range" id="servo-slider-2" name="Servo2" min="0" max="150" step="1" value="75" oninput="updateSliderValue('servo-slider-2', this.value)">
+            </div>
+
+            <div class="slider-group">
+                <label for="servo-slider-3">
+                    <span>Serwo 3 (Min: 0, Max: 180)</span>
+                    <span id="servo-slider-3-value" class="slider-value"></span>
+                </label>
+                <input type="range" id="servo-slider-3" name="Servo3" min="0" max="180" step="1" value="30" oninput="updateSliderValue('servo-slider-3', this.value)">
+            </div>
+
+            <div class="slider-group">
+                <label for="servo-slider-4">
+                    <span>Serwo 4 (Min: 0, Max: 180)</span>
+                    <span id="servo-slider-4-value" class="slider-value"></span>
+                </label>
+                <input type="range" id="servo-slider-4" name="Servo4" min="0" max="180" step="1" value="180" oninput="updateSliderValue('servo-slider-4', this.value)">
+            </div>
+
+            <div class="slider-group">
+                <label for="servo-slider-5">
+                    <span>Serwo 5 (Min: 0, Max: 180)</span>
+                    <span id="servo-slider-5-value" class="slider-value"></span>
+                </label>
+                <input type="range" id="servo-slider-5" name="Servo5" min="0" max="180" step="1" value="90" oninput="updateSliderValue('servo-slider-5', this.value)">
+            </div>
+
+            <div class="movement-controls">
+                <h3>Sterowanie Ruchem (Jazda)</h3>
+                <div class="movement-grid">
+                    <div class="empty"></div>
+                    <button onclick="sendMoveCommand('Przod')">⬆️</button>
+                    <div class="empty"></div>
+
+                    <button onclick="sendMoveCommand('Lewo')">⬅️</button>
+                    <button class="stop-button" onclick="sendMoveCommand('STOP')">STOP</button>
+                    <button onclick="sendMoveCommand('Prawo')">➡️</button>
+
+                    <div class="empty"></div>
+                    <button onclick="sendMoveCommand('Tyl')">⬇️</button>
+                    <div class="empty"></div>
+
+                    <button onclick="sendMoveCommand('WMiejscuWLewo')" title="Obrót w miejscu w lewo">↩️</button>
+                    <div class="empty"></div>
+                    <button onclick="sendMoveCommand('WMiejscuWPrawo')" title="Obrót w miejscu w prawo">↪️</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="settings-sidebar" class="sidebar">
+      <a href="javascript:void(0)" class="close-btn" onclick="closeNav()">&times;</a>
+      <h3>Parametry Logiki</h3>
+
+      <div class="slider-group sidebar-setting-group">
+        <label for="gripper-delay">
+             <span>Opóźnienie chwytaka (ms) (0-25)</span>
+             <span id="gripper-delay-value" class="slider-value"></span>
+        </label>
+        <input type="range" id="gripper-delay" name="GripperDelay" min="0" max="12" step="1" value="7" oninput="updateSliderValue('gripper-delay', this.value)">
+      </div>
+
+      <div class="slider-group sidebar-setting-group">
+        <label for="servo-delay">
+             <span>Opóźnienie Serwa (ms) (0-25)</span>
+             <span id="servo-delay-value" class="slider-value"></span>
+        </label>
+        <input type="range" id="servo-delay" name="ServoDelay" min="0" max="25" step="1" value="10" oninput="updateSliderValue('servo-delay', this.value)">
+      </div>
+
+      <div class="slider-group sidebar-setting-group">
+        <label for="turn-power">
+             <span>Siła Skrętu (%) (0-100)</span>
+             <span id="turn-power-value" class="slider-value"></span>
+        </label>
+        <input type="range" id="turn-power" name="TurnPower" min="0" max="100" step="1" value="50" oninput="updateSliderValue('turn-power', this.value)">
+      </div>
+
+      <div class="slider-group sidebar-setting-group">
+        <label for="pwm-value">
+             <span>Wartość PWM (0-255)</span>
+             <span id="pwm-value-value" class="slider-value"></span>
+        </label>
+        <input type="range" id="pwm-value" name="PWMValue" min="0" max="255" step="1" value="128" oninput="updateSliderValue('pwm-value', this.value)">
+      </div>
+
+      <div class="slider-group sidebar-setting-group">
+        <button onclick="sendInitialPosition()">Ustaw Pozycję Początkową</button>
+      </div>
+
+      <div class="slider-group sidebar-setting-group">
+        <h3>Sterowanie Lidarem</h3>
+        <button class="primary-button" onclick="controlLidar('start')">Włącz Lidar</button>
+        <button class="danger-button" onclick="controlLidar('stop')">Wyłącz Lidar</button>
+        <button onclick="controlLidar('read')">Odczyt Lidaru (Log)</button>
+      </div>
+    </div>
+</body>
+</html>
