@@ -111,7 +111,7 @@ servo_values = {
 }
 
 logic_parameters = {
-    "GripperDelay": 10, "ServoDelay": 10, "TurnPower": 50, "PWMValue": 128
+    "GripperDelay": 3, "ServoDelay": 10, "TurnPower": 50, "PWMValue": 128
 }
 
 
@@ -178,7 +178,7 @@ def update_logic_param():
 
     if param_name in logic_parameters and value is not None:
         try:
-            value = int(value)
+            value = float(value)
             logic_parameters[param_name] = value
             if param_name in LOGIC_COMMAND_MAP:
                 command_prefix = LOGIC_COMMAND_MAP[param_name]
