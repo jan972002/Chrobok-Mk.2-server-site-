@@ -112,6 +112,8 @@ logic_parameters = {
     "GripperDelay": 10, "ServoDelay": 10
 }
 
+# Single source of truth for initial positions - DRY principle
+INITIAL_SERVO_POSITIONS = servo_values.copy()
 
 def generate_frames():
     if not camera.is_opened():
@@ -193,15 +195,13 @@ def update_logic_param():
 def set_initial_position():
     print("WYWOŁANO: Ustawienie pozycji początkowej ramienia!")
     serial_control.send_command("ZerowaPozycja")
-    initial_servo_values = {
-        "Servo1": 500, "Servo2": 75, "Servo3": 30, "Servo4": 180, "Servo5": 90
-    }
+    # DRY: Single source of truth instead of hardcoded duplicate values
     global servo_values
-    servo_values.update(initial_servo_values)
+    servo_values.update(INITIAL_SERVO_POSITIONS)
     return jsonify({
         "status": "success",
         "message": "Wysłano komendę ustawienia pozycji początkowej i zresetowano UI.",
-        "initial_values": initial_servo_values
+        "initial_values": INITIAL_SERVO_POSITIONS
     }), 200
 
 @app.route('/get_serial_log', methods=['GET'])

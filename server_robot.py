@@ -114,6 +114,8 @@ logic_parameters = {
     "GripperDelay": 3, "ServoDelay": 10, "TurnPower": 50, "PWMValue": 128
 }
 
+# Initial servo position constant - DRY principle: single source of truth
+INITIAL_SERVO_POSITIONS = servo_values.copy()
 
 def generate_frames():
     if not camera.is_opened():
@@ -200,17 +202,14 @@ def set_initial_position():
     print("WYWOŁANO: Ustawienie pozycji początkowej ramienia!")
     serial_control.send_command("ZerowaPozycja")
 
-    initial_servo_values = {
-        "Servo1": 500, "Servo2": 75, "Servo3": 30, "Servo4": 180, "Servo5": 90
-    }
-
+    # DRY: Use single source of truth instead of duplicating hardcoded values
     global servo_values
-    servo_values.update(initial_servo_values)
+    servo_values.update(INITIAL_SERVO_POSITIONS)
 
     return jsonify({
         "status": "success",
         "message": "Wysłano komendę ustawienia pozycji początkowej i zresetowano UI.",
-        "initial_values": initial_servo_values
+        "initial_values": INITIAL_SERVO_POSITIONS
     }), 200
 
 
@@ -228,18 +227,21 @@ def send_move_command():
     return jsonify({"status": "error", "message": "Brak komendy ruchu"}), 400
 
 
+# LIDAR command mapping - switch-like pattern via dictionary lookup
+# More efficient than if-elif chain, easier to maintain and extend
+LIDAR_COMMANDS = {
+    'start': 'WlaczLidar',
+    'stop': 'WylaczLidar',
+    'read': 'OdczytLidaru'
+}
+
 @app.route('/control_lidar', methods=['POST'])
 def control_lidar():
     data = request.get_json()
     action = data.get('action')
 
-    serial_command = ""
-    if action == 'start':
-        serial_command = "WlaczLidar"
-    elif action == 'stop':
-        serial_command = "WylaczLidar"
-    elif action == 'read':
-        serial_command = "OdczytLidaru"
+    # Dictionary lookup is O(1) vs if-elif which is O(n) - faster and cleaner
+    serial_command = LIDAR_COMMANDS.get(action)
 
     if serial_command:
         serial_control.send_command(serial_command)

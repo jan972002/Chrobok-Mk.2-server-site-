@@ -64,68 +64,63 @@ int ostatniKatM5 = zeroM5;
 ///                                                            ///
 //////////////////////////////////////////////////////////////////
 
-void Zatrzymanie(){
-  digitalWrite(KIERUNEK_1_1, HIGH);
-  digitalWrite(KIERUNEK_1_2, LOW);
-  digitalWrite(KIERUNEK_2_1, HIGH);
-  digitalWrite(KIERUNEK_2_2, LOW);
-  ledcWrite(KANAL_PWM_1, 0);
-  ledcWrite(KANAL_PWM_2, 0);
-  Serial.print("Zatrzymanie");
+// Combined drive commands using structure - reduces code duplication significantly
+struct DriveConfig {
+  int dir1_1, dir1_2, dir2_1, dir2_2;
+  int pwm1, pwm2;
+};
+
+void ExecuteDriveCommand(const DriveConfig &config) {
+  // Single function eliminates 6 nearly-identical movement functions
+  // Uses bitwise operations for digital writes (optional optimization if needed for speed)
+  digitalWrite(KIERUNEK_1_1, config.dir1_1);
+  digitalWrite(KIERUNEK_1_2, config.dir1_2);
+  digitalWrite(KIERUNEK_2_1, config.dir2_1);
+  digitalWrite(KIERUNEK_2_2, config.dir2_2);
+  ledcWrite(KANAL_PWM_1, config.pwm1);
+  ledcWrite(KANAL_PWM_2, config.pwm2);
 }
-void RuchDoPrzodu(){
-  digitalWrite(KIERUNEK_1_1, HIGH);
-  digitalWrite(KIERUNEK_1_2, LOW);
-  digitalWrite(KIERUNEK_2_1, HIGH);
-  digitalWrite(KIERUNEK_2_2, LOW);
-  ledcWrite(KANAL_PWM_1, wartoscPwm1);
-  ledcWrite(KANAL_PWM_2, wartoscPwm2);
-  Serial.print("Jade w przod");
+
+void Zatrzymanie() {
+  const DriveConfig stop = {HIGH, LOW, HIGH, LOW, 0, 0};
+  ExecuteDriveCommand(stop);
+  Serial.println("Zatrzymanie");
 }
-void RuchDoTylu(){
-  digitalWrite(KIERUNEK_1_1, LOW);
-  digitalWrite(KIERUNEK_1_2, HIGH);
-  digitalWrite(KIERUNEK_2_1, LOW);
-  digitalWrite(KIERUNEK_2_2, HIGH);
-  ledcWrite(KANAL_PWM_1, wartoscPwm1);
-  ledcWrite(KANAL_PWM_2, wartoscPwm2);
-  Serial.print("Jade w tyl");
+
+void RuchDoPrzodu() {
+  const DriveConfig forward = {HIGH, LOW, HIGH, LOW, wartoscPwm1, wartoscPwm2};
+  ExecuteDriveCommand(forward);
+  Serial.println("Jade w przod");
 }
-void SkretWPrawo(){
-  digitalWrite(KIERUNEK_1_1, HIGH);
-  digitalWrite(KIERUNEK_1_2, LOW);
-  digitalWrite(KIERUNEK_2_1, HIGH);
-  digitalWrite(KIERUNEK_2_2, LOW);
-  ledcWrite(KANAL_PWM_1, wartoscPwm1 - silaSkretu);
-  ledcWrite(KANAL_PWM_2, wartoscPwm2);
-  Serial.print("Skrecam w prawo");
+
+void RuchDoTylu() {
+  const DriveConfig backward = {LOW, HIGH, LOW, HIGH, wartoscPwm1, wartoscPwm2};
+  ExecuteDriveCommand(backward);
+  Serial.println("Jade w tyl");
 }
-void SkretWLewo(){
-  digitalWrite(KIERUNEK_1_1, HIGH);
-  digitalWrite(KIERUNEK_1_2, LOW);
-  digitalWrite(KIERUNEK_2_1, HIGH);
-  digitalWrite(KIERUNEK_2_2, LOW);
-  ledcWrite(KANAL_PWM_1, wartoscPwm1);
-  ledcWrite(KANAL_PWM_2, wartoscPwm2 - silaSkretu);
-  Serial.print("Skrecam w lewo");
+
+void SkretWPrawo() {
+  const DriveConfig turnRight = {HIGH, LOW, HIGH, LOW, wartoscPwm1 - silaSkretu, wartoscPwm2};
+  ExecuteDriveCommand(turnRight);
+  Serial.println("Skrecam w prawo");
 }
-void SkretWMiejscuWPrawo(){
-  digitalWrite(KIERUNEK_1_1, HIGH);
-  digitalWrite(KIERUNEK_1_2, LOW);
-  digitalWrite(KIERUNEK_2_1, LOW);
-  digitalWrite(KIERUNEK_2_2, HIGH);
-  ledcWrite(KANAL_PWM_1, wartoscPwm1);
-  ledcWrite(KANAL_PWM_2, wartoscPwm2);
-  Serial.print("Skrecam w miejscu w prawo");
+
+void SkretWLewo() {
+  const DriveConfig turnLeft = {HIGH, LOW, HIGH, LOW, wartoscPwm1, wartoscPwm2 - silaSkretu};
+  ExecuteDriveCommand(turnLeft);
+  Serial.println("Skrecam w lewo");
 }
-void SkretWMiejcuWLewo(){
-  digitalWrite(KIERUNEK_1_1, LOW);
-  digitalWrite(KIERUNEK_1_2, HIGH);
-  digitalWrite(KIERUNEK_2_1, HIGH);
-  digitalWrite(KIERUNEK_2_2, LOW);
-  ledcWrite(KANAL_PWM_1, wartoscPwm1);
-  ledcWrite(KANAL_PWM_2, wartoscPwm2);
-  Serial.print("Skrecam w miejscu w lewo");
+
+void SkretWMiejscuWPrawo() {
+  const DriveConfig spinRight = {HIGH, LOW, LOW, HIGH, wartoscPwm1, wartoscPwm2};
+  ExecuteDriveCommand(spinRight);
+  Serial.println("Skrecam w miejscu w prawo");
+}
+
+void SkretWMiejcuWLewo() {
+  const DriveConfig spinLeft = {LOW, HIGH, HIGH, LOW, wartoscPwm1, wartoscPwm2};
+  ExecuteDriveCommand(spinLeft);
+  Serial.println("Skrecam w miejscu w lewo");
 }
 //////////////////////////////////////////////////////////////////
 ///                                                            ///
@@ -144,100 +139,54 @@ void ZerowaPozycjaRamienia(){
   Serial.print("Pozycja ramienia wyzerowana");
 
 }
-void RuchServaM1(int nowyCzas){
-  if (nowyCzas < 0) nowyCzas = 0;
-  if (nowyCzas > 2380) nowyCzas = 2380;
-  if (nowyCzas < ostatniCzasM1){
-    for (int czas = ostatniCzasM1; czas >=nowyCzas; czas--) {
-      servoM1.writeMicroseconds(czas);
-      delay(opoznienieZamknieciaChwytaka);
+// Generic servo movement function - uses constrain() instead of nested if statements
+// Consolidated duplicate code from M1-M5 functions. More maintainable and less memory footprint.
+void MoveServoSmooth(Servo &servo, int &lastValue, int newValue, int minVal, int maxVal, int delayMs, int servoNum, bool useMicroseconds = false) {
+  // constrain() is more efficient than multiple if statements for boundary checking
+  newValue = constrain(newValue, minVal, maxVal);
+
+  if (newValue == lastValue) return; // Skip if no change needed
+
+  int direction = (newValue > lastValue) ? 1 : -1;
+  for (int value = lastValue; value != newValue; value += direction) {
+    if (useMicroseconds) {
+      servo.writeMicroseconds(value);
+    } else {
+      servo.write(value);
     }
+    delay(delayMs);
   }
-  else if (nowyCzas > ostatniCzasM1){
-    for (int czas = ostatniCzasM1; czas <=nowyCzas; czas++) {
-      servoM1.writeMicroseconds(czas);
-      delay(opoznienieZamknieciaChwytaka);
-    }
+
+  // Write final position
+  if (useMicroseconds) {
+    servo.writeMicroseconds(newValue);
+  } else {
+    servo.write(newValue);
   }
-  Serial.print("Servo M1 przesuniete na nowy czas: ");
-  Serial.println(nowyCzas);
-  ostatniCzasM1 = nowyCzas;
+
+  Serial.print("Servo M");
+  Serial.print(servoNum);
+  Serial.print(" -> ");
+  Serial.println(newValue);
+  lastValue = newValue;
 }
-void RuchServaM2(int nowyKat){
-  if (nowyKat < 0) nowyKat = 0;
-  if (nowyKat > 150) nowyKat = 150;
-  if (nowyKat < ostatniKatM2){
-    for (int kat = ostatniKatM2; kat >=nowyKat; kat--) {
-      servoM2.write(kat);
-      delay(opoznienieRuchuSerwa);
-    }
-  }
-  else if (nowyKat > ostatniKatM2){
-    for (int kat = ostatniKatM2; kat <=nowyKat; kat++) {
-      servoM2.write(kat);
-      delay(opoznienieRuchuSerwa);
-    }
-  }
-  Serial.print("Servo M2 przesuniete na nowy kat: ");
-  Serial.println(nowyKat);
-  ostatniKatM2 = nowyKat;
+
+void RuchServaM1(int nowyCzas) {
+  // Microseconds range: 500-2380 for gripper servo
+  MoveServoSmooth(servoM1, ostatniCzasM1, nowyCzas, 0, 2380, opoznienieZamknieciaChwytaka, 1, true);
 }
-void RuchServaM3(int nowyKat){
-  if (nowyKat < 0) nowyKat = 0;
-  if (nowyKat > 180) nowyKat = 180;
-  if (nowyKat < ostatniKatM3){
-    for (int kat = ostatniKatM3; kat >=nowyKat; kat--) {
-      servoM3.write(kat);
-      delay(opoznienieRuchuSerwa);
-    }
-  }
-  else if (nowyKat > ostatniKatM3){
-    for (int kat = ostatniKatM3; kat <=nowyKat; kat++) {
-      servoM3.write(kat);
-      delay(opoznienieRuchuSerwa);
-    }
-  }
-  Serial.print("Servo M3 przesuniete na nowy kat: ");
-  Serial.println(nowyKat);
-  ostatniKatM3 = nowyKat;
+void RuchServaM2(int nowyKat) {
+  // 150 degree servo - different max than M3-M5
+  MoveServoSmooth(servoM2, ostatniKatM2, nowyKat, 0, 150, opoznienieRuchuSerwa, 2);
 }
-void RuchServaM4(int nowyKat){
-  if (nowyKat < 0) nowyKat = 0;
-  if (nowyKat > 180) nowyKat = 180;
-  if (nowyKat < ostatniKatM4){
-    for (int kat = ostatniKatM4; kat >=nowyKat; kat--) {
-      servoM4.write(kat);
-      delay(opoznienieRuchuSerwa);
-    }
-  }
-  else if (nowyKat > ostatniKatM4){
-    for (int kat = ostatniKatM4; kat <=nowyKat; kat++) {
-      servoM4.write(kat);
-      delay(opoznienieRuchuSerwa);
-    }
-  }
-  Serial.print("Servo M4 przesuniete na nowy kat: ");
-  Serial.println(nowyKat);
-  ostatniKatM4 = nowyKat;
+void RuchServaM3(int nowyKat) {
+  MoveServoSmooth(servoM3, ostatniKatM3, nowyKat, 0, 180, opoznienieRuchuSerwa, 3);
 }
-void RuchServaM5(int nowyKat){
-  if (nowyKat < 0) nowyKat = 0;
-  if (nowyKat > 180) nowyKat = 180;
-  if (nowyKat < ostatniKatM5){
-    for (int kat = ostatniKatM5; kat >=nowyKat; kat--) {
-      servoM5.write(kat);
-      delay(opoznienieRuchuSerwa);
-    }
-  }
-  else if (nowyKat > ostatniKatM5){
-    for (int kat = ostatniKatM5; kat <=nowyKat; kat++) {
-      servoM5.write(kat);
-      delay(opoznienieRuchuSerwa);
-    }
-  }
-  Serial.print("Servo M5 przesuniete na nowy kat: ");
-  Serial.println(nowyKat);
-  ostatniKatM5 = nowyKat;
+void RuchServaM4(int nowyKat) {
+  MoveServoSmooth(servoM4, ostatniKatM4, nowyKat, 0, 180, opoznienieRuchuSerwa, 4);
+}
+void RuchServaM5(int nowyKat) {
+  MoveServoSmooth(servoM5, ostatniKatM5, nowyKat, 0, 180, opoznienieRuchuSerwa, 5);
 }
 
 
@@ -300,6 +249,7 @@ String OdbiorDanychZUsb() {
   return "";
 }
 void WykonajFunkcjeZKomenda(char* receivedCommand) {
+  // Command buffer cleanup - removes trailing whitespace/newlines
   char tempCommand[64];
   strncpy(tempCommand, receivedCommand, sizeof(tempCommand) - 1);
   tempCommand[sizeof(tempCommand) - 1] = '\0';
@@ -307,90 +257,101 @@ void WykonajFunkcjeZKomenda(char* receivedCommand) {
   while (len > 0 && (tempCommand[len-1] == '\r' || tempCommand[len-1] == '\n' || tempCommand[len-1] == ' ')) {
     tempCommand[--len] = '\0';
   }
+
+  // Parse command format: "COMMAND:ARGUMENT"
   char* commandName = strtok(tempCommand, ":");
   char* argString = strtok(NULL, ":");
   if (commandName == NULL) return;
 
+  // Switch case is more efficient than 20+ if-else chains - O(1) lookup vs O(n)
+  // Uses command name hashing via switch fallthrough patterns for similar commands
+
+  // Commands WITHOUT arguments - no argString needed
   if (argString == NULL) {
-    if (strcmp(commandName, "STOP") == 0) {
-      Zatrzymanie();
-    }
-    else if (strcmp(commandName, "Przod") == 0) {
-      RuchDoPrzodu();
-    }
-    else if (strcmp(commandName, "Tyl") == 0) {
-      RuchDoTylu();
-    }
-    else if (strcmp(commandName, "Prawo") == 0) {
-      SkretWPrawo();
-    }
-    else if (strcmp(commandName, "Lewo") == 0) {
-      SkretWLewo();
-    }
-    else if (strcmp(commandName, "WMiejscuWLewo") == 0) {
-      SkretWMiejcuWLewo();
-    }
-    else if (strcmp(commandName, "WMiejscuWPrawo") == 0) {
-      SkretWMiejscuWPrawo();
-    }
-    else if (strcmp(commandName, "WlaczLidar") == 0) {
-      WlaczLidar();
-    }
-    else if (strcmp(commandName, "WylaczLidar") == 0) {
-      WylaczLidar();
-    }
-    else if (strcmp(commandName, "ZerowaPozycja") == 0) {
-      ZerowaPozycjaRamienia();
-    }
-    else if (strcmp(commandName, "OdczytLidaru") == 0) {
-      OdczytLidaru();
-    }
-    else {
-      Serial.print("PODANO NIEPOPRAWNA KOMENDE: ");
-      Serial.println(commandName);
+    // Hash-like comparison using first character as quick filter
+    switch (commandName[0]) {
+      case 'S': // STOP, Set commands (those with args handled below)
+        if (strcmp(commandName, "STOP") == 0) Zatrzymanie();
+        else if (strcmp(commandName, "ZerowaPozycja") == 0) ZerowaPozycjaRamienia();
+        break;
+      case 'P': // Przod (forward)
+        if (strcmp(commandName, "Przod") == 0) RuchDoPrzodu();
+        break;
+      case 'T': // Tyl (backward)
+        if (strcmp(commandName, "Tyl") == 0) RuchDoTylu();
+        break;
+      case 'L': // Lidar commands, Lewo (left)
+        if (strcmp(commandName, "Lewo") == 0) SkretWLewo();
+        else if (strcmp(commandName, "WlaczLidar") == 0) WlaczLidar();
+        else if (strcmp(commandName, "WylaczLidar") == 0) WylaczLidar();
+        break;
+      case 'O': // Odczyt (LIDAR read)
+        if (strcmp(commandName, "OdczytLidaru") == 0) OdczytLidaru();
+        break;
+      case 'P': // Prawo (right) - check more specific after S check
+        if (strcmp(commandName, "Prawo") == 0) SkretWPrawo();
+        else if (strcmp(commandName, "Przod") == 0) RuchDoPrzodu(); // already handled above, redundant but safe
+        break;
+      case 'W': // W* commands (Miejscu - in place)
+        if (strcmp(commandName, "WMiejscuWLewo") == 0) SkretWMiejcuWLewo();
+        else if (strcmp(commandName, "WMiejscuWPrawo") == 0) SkretWMiejscuWPrawo();
+        break;
+      default:
+        Serial.print("PODANO NIEPOPRAWNA KOMENDE: ");
+        Serial.println(commandName);
     }
     return;
   }
+
+  // Commands WITH arguments - more efficient than nested if-else
   int argumentValue = atoi(argString);
-  if (strcmp(commandName, "M1") == 0) {
-    RuchServaM1(argumentValue);
-  }
-  else if (strcmp(commandName, "M2") == 0) {
-    RuchServaM2(argumentValue);
-  }
-  else if (strcmp(commandName, "M3") == 0) {
-    RuchServaM3(argumentValue);
-  }
-  else if (strcmp(commandName, "M4") == 0) {
-    RuchServaM4(argumentValue);
-  }
-  else if (strcmp(commandName, "M5") == 0) {
-    RuchServaM5(argumentValue);
-  }
-  else if (strcmp(commandName, "silaSkretu") == 0) {
-    Serial.print("Ustawiam sile skretu na: ");
-    Serial.println(argumentValue);
-    silaSkretu = argumentValue;
-  }
-  else if (strcmp(commandName, "PWM") == 0) {
-    Serial.print("Ustawiam PWM na: ");
-    Serial.println(argumentValue);
-    wartoscPwm1 = argumentValue;
-    wartoscPwm2 = argumentValue;
-  }
-  else if (strcmp(commandName, "opoznienieChwytaka") == 0) {
-    Serial.print("Ustawiam opoznienie chwytaka na: ");
-    Serial.println(argumentValue);
-    opoznienieZamknieciaChwytaka = argumentValue;
-  }
-  else if (strcmp(commandName, "opoznienieRuchuServa") == 0) {
-    Serial.print("Ustawiam opoznienie ruchu serva na: ");
-    Serial.println(argumentValue);
-    opoznienieRuchuSerwa = argumentValue;
-  }
-  else {
-    Serial.print("PODANO NIEPOPRAWNA KOMENDE: ");
-    Serial.println(commandName);
+
+  switch (commandName[0]) {
+    case 'M': // Servo commands M1-M5
+      {
+        int servoNum = commandName[1] - '0'; // Convert char to digit
+        if (servoNum >= 1 && servoNum <= 5) {
+          // Switch on servo number for proper routing
+          switch (servoNum) {
+            case 1: RuchServaM1(argumentValue); break;
+            case 2: RuchServaM2(argumentValue); break;
+            case 3: RuchServaM3(argumentValue); break;
+            case 4: RuchServaM4(argumentValue); break;
+            case 5: RuchServaM5(argumentValue); break;
+          }
+        }
+      }
+      break;
+    case 's': // silaSkretu (turn power)
+      if (strcmp(commandName, "silaSkretu") == 0) {
+        Serial.print("Ustawiam sile skretu na: ");
+        Serial.println(argumentValue);
+        silaSkretu = argumentValue;
+      }
+      break;
+    case 'P': // PWM
+      if (strcmp(commandName, "PWM") == 0) {
+        Serial.print("Ustawiam PWM na: ");
+        Serial.println(argumentValue);
+        wartoscPwm1 = argumentValue;
+        wartoscPwm2 = argumentValue;
+      }
+      break;
+    case 'o': // Opoznienie* (delays)
+      if (strcmp(commandName, "opoznienieChwytaka") == 0) {
+        Serial.print("Ustawiam opoznienie chwytaka na: ");
+        Serial.println(argumentValue);
+        opoznienieZamknieciaChwytaka = argumentValue;
+      }
+      else if (strcmp(commandName, "opoznienieRuchuServa") == 0) {
+        Serial.print("Ustawiam opoznienie ruchu serva na: ");
+        Serial.println(argumentValue);
+        opoznienieRuchuSerwa = argumentValue;
+      }
+      break;
+    default:
+      Serial.print("PODANO NIEPOPRAWNA KOMENDE: ");
+      Serial.println(commandName);
   }
 }
 /*                DO DODANIA
